@@ -4,13 +4,14 @@
 #include <map>
 using namespace std;
 
-//#pragma comment( linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"" )
+#pragma comment( linker, "/subsystem:\"windows\" /entry:\"mainCRTStartup\"" )
 
 map<CHAR,CHAR>g_map;
 
 int g_cx = 0;
 int g_cy = 0;
 CHAR g_pwd[MAX_PATH] = { 0 };
+HANDLE g_hMutex;
 
 void inputKey(int key) {
     keybd_event(key, 0, 0, 0);
@@ -53,15 +54,13 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
     ::GetWindowText(hwnd, szTitle, MAX_PATH);
     ::RealGetWindowClass(hwnd, szClassName, MAX_PATH);
 
-    
     if (wcscmp(szTitle, L"Mango3") == 0 && wcscmp(szClassName, L"Qt5QWindowIcon") == 0)
     {
         if (hwnd == NULL) {
             return TRUE;
         }   
-        ::SendMessage(hwnd, SW_SHOW, NULL, 0);
-         SetForegroundWindow(hwnd);
-
+     
+        SwitchToThisWindow(hwnd, TRUE);
         RECT r1;
         ::GetWindowRect(hwnd, &r1);
         int width = r1.right - r1.left;
@@ -74,23 +73,32 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
         if (width < 380) {
             return TRUE;
         }
-        if (width == 656 && hight == 519) {
-            ::SendMessage(hwnd, WM_CLOSE, 0, 0);
-            return TRUE;
-        }
-        cout << hwnd << "  width:" << width << "   hight:" << hight <<"  "<< r1.left + width / 2 << "  "<< r1.top + hight / 2 << endl;
-
-        DWORD dwThread = GetWindowThreadProcessId(hwnd, NULL);
-        AttachThreadInput(dwThread, GetCurrentThreadId(), TRUE);
+        
+       
+       // cout << hwnd << "  width:" << width << "   hight:" << hight <<"  "<< r1.left + width / 2 << "  "<< r1.top + hight / 2 << endl;
+        
+       // DWORD dwThread = GetWindowThreadProcessId(hwnd, NULL);
+       // cout <<hwnd <<" " << dwThread << endl;
+       // AttachThreadInput(dwThread, GetCurrentThrea
+      //  mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_MOVE, r1.left + width / 2, r1.top + hight / 2, 0, 0);
+ //       mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, r1.left + width / 2, r1.top + hight / 2, 0, 0);
+  //      mouse_event(MOUSEEVENTF_ABSOLUTE | MOUSEEVENTF_LEFTDOWN | MOUSEEVENTF_LEFTUP, r1.left + width / 2, r1.top + hight / 2, 0, 0);
+        Sleep(200);
+     
+        ::SendMessage(hwnd, SW_SHOW, NULL, 0);
+        SetForegroundWindow(hwnd);
+       
         for (int i = 0; i < 12; i++) {
             inputKey(8);
         }
+       
         int len = strlen(g_pwd);
         for (int i = 0; i < len; i++) {
             input(g_pwd[i]);
         }
-        inputKey(13);
    
+        inputKey(13);
+ 
         return FALSE;
        
     }
@@ -99,6 +107,13 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 
 int main()
 { 
+    g_hMutex = CreateMutex(NULL, FALSE, L"SCU_Mutex");
+
+    if (g_hMutex && GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        MessageBox(NULL,L"程序已运行", NULL, MB_OK);
+        return 0;
+    }
     g_map['!'] = '1';
     g_map['@'] = '2';
     g_map['#'] = '3';
@@ -129,8 +144,23 @@ int main()
         out.close();
     }
     in.close();
-
     ::EnumWindows(EnumWindowsProc, NULL);
+  //  system("pause");
 
+    if (RegisterHotKey(NULL, 1, MOD_ALT | MOD_NOREPEAT, 0x42))  //0x42 is 'b'   
+    {
+       // _tprintf(_T("Hotkey 'ALT+b' registered, using MOD_NOREPEAT flag\n"));
+
+    }
+
+    MSG msg = { 0 };       
+    while (GetMessage(&msg, NULL, 0, 0))
+    {
+        if (msg.message == WM_HOTKEY)
+        {
+            //_tprintf(_T("WM_HOTKEY received\n"));
+            ::EnumWindows(EnumWindowsProc, NULL);
+        }
+    }
     return 0;
 }
