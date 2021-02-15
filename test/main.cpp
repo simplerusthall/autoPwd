@@ -1,6 +1,7 @@
 #include "windows.h"
 #include <iostream>
 #include <fstream>
+#include <tchar.h>
 #include <map>
 using namespace std;
 
@@ -93,6 +94,7 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
         }
        
         int len = strlen(g_pwd);
+        //cout << "输入密码为：" << g_pwd << " 长度："<< len << endl;
         for (int i = 0; i < len; i++) {
             input(g_pwd[i]);
         }
@@ -107,13 +109,15 @@ BOOL CALLBACK EnumWindowsProc(HWND hwnd, LPARAM lParam)
 
 int main()
 { 
-    g_hMutex = CreateMutex(NULL, FALSE, L"SCU_Mutex");
+    g_hMutex = CreateMutex(NULL, FALSE, L"AUTOPWD_Mutex");
 
     if (g_hMutex && GetLastError() == ERROR_ALREADY_EXISTS)
     {
-        MessageBox(NULL,L"程序已运行", NULL, MB_OK);
+        MessageBox(NULL,L"大佬，你已经开了，还开，这么想我吗", NULL, MB_OK);
         return 0;
     }
+
+    
     g_map['!'] = '1';
     g_map['@'] = '2';
     g_map['#'] = '3';
@@ -127,26 +131,45 @@ int main()
     g_map['_'] = '-';
     g_map['+'] = '=';
 
-
     g_cx = ::GetSystemMetrics(SM_CXSCREEN);
     g_cy = ::GetSystemMetrics(SM_CYSCREEN);
-    ifstream in("txt.dat", fstream::in);
+
+    //::EnumWindows(EnumWindowsProc, NULL);
+  //  system("pause");
+     //添加以下代码
+    HKEY   hKey;
+    TCHAR pFileName[MAX_PATH] = { 0 };
+    DWORD dwRet = ::GetModuleFileName(NULL, pFileName, MAX_PATH);
+    LPCTSTR lpRun = L"Software\\Microsoft\\Windows\\CurrentVersion\\Run";
+
+    long lRet = RegOpenKeyEx(HKEY_CURRENT_USER, lpRun, 0, KEY_WRITE,&hKey);
+    if (lRet == ERROR_SUCCESS)
+    {
+        //添加注册
+        RegSetValueEx(hKey, L"AUTOPWD", 0, REG_SZ, (const BYTE*)(LPCSTR)pFileName, MAX_PATH);
+        RegCloseKey(hKey);
+    }
+
+    TCHAR* p = _tcsrchr(pFileName, L'\\');
+    p[1] = L'\0';
+    lstrcat(pFileName, L"txt.dat");
+    ifstream in(pFileName, fstream::in);
     if (in.is_open()) {
-       in.getline(g_pwd, MAX_PATH);
+        in.getline(g_pwd, MAX_PATH);
     }
     else {
-        ofstream out("txt.dat");
-        if (out.is_open()) {
-            cout << "请输入密码" << endl;
-            cin >> g_pwd;
-            out << g_pwd;
-        }
-        out.close();
+        MessageBox(NULL, L"大佬,你的配置文件呢，被你吃了", L"error", MB_ICONERROR);
+        return 0;
+        /* ofstream out("txt.dat");
+         if (out.is_open()) {
+             cout << "请输入密码" << endl;
+             cin >> g_pwd;
+             out << g_pwd;
+         }*/
+         // out.close();
     }
     in.close();
-    ::EnumWindows(EnumWindowsProc, NULL);
-  //  system("pause");
-
+    //cout << "读取密码为：" << g_pwd << endl;
     if (RegisterHotKey(NULL, 1, MOD_ALT | MOD_NOREPEAT, 0x42))  //0x42 is 'b'   
     {
        // _tprintf(_T("Hotkey 'ALT+b' registered, using MOD_NOREPEAT flag\n"));
